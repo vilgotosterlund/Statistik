@@ -1,0 +1,137 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage[a4paper, total={6.1in, 8.1in}]{geometry}
+
+\author{Valentin Zulj \&  Vilgot \"{O}sterlund}
+\title{Solutions to Assignment 2}
+\date{October 10, 2018}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+In this project, we attemt to solve one of the competition problems published on Kaggle. The purpose of the competition is to use machine learning methods -- random forests -- in order to classify the forest cover type of a given 30 x 30 meter cell. In other words, we want to use the data supplied by Kaggle to determine which type of tree is most common on a specific plot of land. It is an important subject because it would save a lot of time and money if you could classify the tree type based on geographical data. If so, you would not have to fly over the specific area but instead classify the tree type from other -- already collected -- data. We will mainly focus on the random forest classification method, but we will compare it with the performance of a classification tree and a multinomial logit regression model. Not only will we compare the random forest model, but we will also do a small simulation study where we check that the models works the way it should. 
+
+
+\section{Data}
+<<include=FALSE>>=
+library(tidyverse)
+library(dplyr)
+library(plyr)
+data <-  as.tibble(read.csv("data_factors.csv"))
+data <- data %>%
+  select(-X) %>%
+  mutate(Cover_Type = factor(Cover_Type),
+         wild = factor(wild),
+         soil = factor(soil))  
+@
+
+
+\subsection{Original data}
+
+The data used in the project can be found on found on \href{http://www.kaggle.com/c/forest-cover-type-kernels-only/}. The data consists of 15 120 observations of 55 variables. The response variable is, of course, the type of tree, and consists of discrete, interger values on the interval [1, 7]. These types are: Spruce/Fir, Lodgepole Pine, Ponderosa Pine, Cottonwood/Willow, Aspen, Douglas-fir and Krummholz. In total, the data consists of 2160 observations of each Cover type. 
+
+The data set consists of 55 variables, most of which -- 40 to be precise -- are dummies regarding different types of soil. As for the other variables, we present a brief summary in the bullet point list that follows:
+
+\begin{itemize}
+    \item Elevation: Elevation -- in metres -- of the plot of land
+    \item Aspect: Aspect in degrees azimuth
+    \item Slope: Slope -- in degrees -- of the plot of land
+    \item Horizontal: The horizontal distance to the nearest water source
+    \item Vertical: The vertical distance to the nearest source of water
+    \item Horizontal roadways: Horizontal distance to the nearest roadway
+    \item Hillshade (9am, noon, 3pm): Index showing degree of shade from hills at different times of day
+    \item Horizontal: Horizontal distance to the nearest point where wildfire ignition is allowed
+\end{itemize}
+
+\noindent The variables themselves are quite straight forward. Perhaps we should mention that the hillshade index is measured on a scale from 0 to 255. Furthermore, there are some binary columns specifying whether the plot of land is located within one of four wilderness areas, as well as the 40 binary columns that indicate the type of soil in which the trees grow. However, two type of soils, coded as 7 and 15, does not show up in any observation. Problably the data has been split in a way so that there is observations in the test set with theese soil types. 
+
+\subsection{Data handling}
+To get the data tidy and more easily foreseeable, we merged the dummy variables associated with soil type and wilderness area into one column each. This reduced the number of covariates to 12 and means that soil type is now a factor variable with 38 levels (due to the fact that there where no observations of type 7 and 15) and that wilderness area is a factor variable with four levels. After getting to know the data with different plots, which you can read about in the next section, we split the data in to a training- and test set. We sampled half of the data in to the training set and the other half to the test set. However, because of the fact that there where two soil types with only one observation each, we had to force these two observations to the training set. This is because our models can not predict or classify a response variable from covariates that it has not been trained on. The training set consists of 7562 observations and the test set of 7558 observations. 
+
+
+\subsection{Graphical presentation}
+To get an understanding of the data, we explore it by several different plots. Figure \ref{fig:soil_type_bar} shows the frequency of each Soil type, and it becomes clear that some soil types are very rare. As stated earlier, the data set does not consists of any observation of an area where soil type 7 and 15 is the primary soil type. We can also see the observations mentioned in the previous section, where soil type 8 and 25 are the types with only one observation each.
+
+<<include=FALSE>>=
+plot_soil <- data %>%
+  pull(soil) %>%
+  count()
+@
+
+
+<<soil_type_bar, echo=FALSE, fig.width = 6.5, fig.asp = 0.62, fig.align = "center", fig.cap = "Bar chart of the frequency of different soil types.">>=
+ggplot(plot_soil, aes(x = x, y = freq)) +
+  geom_bar(stat="identity", fill = "green", color = "black") +
+  geom_text(aes(label = freq), vjust = -0.3, size = 3.5) +
+  labs(title = "Bar chart of Soil types",
+       y = "Frequency",
+       x = " Soil type") +
+  theme_classic()
+@
+
+In figure \ref{fig:elev_density} it is clear that different trees grow at different elevation. For a decision tree implementation where elevation is the only explaining variable, it would be very unlikely to predict a tree as Krummholz if the elevation was less than 3000 metres. The plot tells us that the elevation of a specific area must be of great importance when it comes to what type of trees that grows there.
+
+<<elev_density, echo=FALSE, fig.width = 5.5, fig.asp = 0.62, fig.align = "center", fig.cap = "Densityplot of Cover type and elevation.">>=
+ggplot(data, aes(x = Elevation, fill = Cover_Type)) +
+  geom_density(alpha = 0.8) +
+  scale_fill_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                    values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Cover type and elevation",
+       fill = "Cover type:") +
+  theme_classic()
+
+@
+
+From figure \ref{fig:elev_hillshade} we can tell that there seems to be no correlation between elevation and the hillshade at 3 pm. Noor does it seem like the hillshade affects the type of tree. This we can tell from the fact that all types of trees grow at all levels of hillshade. We can see that the points in \ref{fig:elev_hillshade} tend to get bigger when the elevation is higher. This is intuitve, since the size of the points is determined by the horizontal distance to the nearest roadway. 
+
+<<elev_hillshade, echo=FALSE, fig.width = 6, fig.asp = 0.68, fig.align = "center", fig.cap = "Scatterplot of Hillshade and Elevation.">>=
+ggplot(data, aes(x = Hillshade_3pm, y = Elevation, color = Cover_Type, size = h_road)) +
+  geom_point() +
+  scale_color_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                     values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Hillshade and elevation",
+       color = "Cover type:",
+       size = "Horizontal 
+distance to roads:",
+       x = "Hillshade at 3 pm") +
+  theme_classic()
+
+@
+
+
+Figure \ref{fig:h_water_boxplot} shows a boxplot of cover type and horizontal distance to water for the corresponding plot of land. It seems like the horizontal distance to water have a very small, if any, impact on which type of three that grows in a specific area.
+
+<<h_water_boxplot, echo=FALSE, fig.width = 5.5, fig.asp = 0.62, fig.align = "center", fig.cap = "Boxplot of Cover type and horizontal distance to water.">>=
+ggplot(data, aes(x = Cover_Type, y = h_water, fill = Cover_Type)) +
+  geom_boxplot() +
+  scale_fill_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                    values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Cover type and distance to water",
+       fill = "Cover type:",
+       x = "Cover type",
+       y = "Horizontal distance to water") +
+  theme_classic()
+@
+
+We can tell from figure \ref{fig:soil_elev} that the soil type depends on the elevation of the specific area. Some soil types exists in a wide range of elevation and other types exists only in a more narrow range of elevation. However, no soil type span the whole elevation span and for example we can see in the plot that soil type 40 is never found below 3000 metres.
+
+<<soil_elev, echo=FALSE, fig.width = 6.5, fig.asp = 0.62, fig.cap = "Scatterplot of soil type and elevtion.">>=
+ggplot(data, aes(y = Elevation, x = soil, color = Cover_Type)) +
+  geom_point() +
+  scale_color_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                     values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Soil type and elevation",
+       color = "Cover type:",
+       x = "Soil type",
+       y = "Elevation") +
+  theme_classic()
+@
+
+\end{document}
