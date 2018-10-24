@@ -1,9 +1,9 @@
 library(tidyverse)
 library(dplyr)
-library(randomdata)
+library(randomForest)
 library(plyr)
 library(nnet)
-
+library(modelr)
 #### Wrangling ####
 data <-  as.tibble(read.csv("data_factors.csv"))
 original <- as.tibble(read.csv("train.csv"))
@@ -24,21 +24,54 @@ test <- test %>%
 train <- data[-s, ] # Training set
 train <- train %>%
   select(-Id)
-?multinom
-mod_multi <- multinom(Cover_Type ~ ., data = train, maxit = 7500)
-prediktioner <- predict(mod_multi, test)
-compare <- as.data.frame(cbind(prediktioner, test$Cover_Type))
-compare <- compare %>%
-  mutate(korrekt = ifelse(prediktioner == V2, TRUE, FALSE))
+t8_25 <- test %>%
+  filter(soil == c(8, 25))
+test <- test %>%
+  filter(soil != c(8, 25))
+train <- rbind(train, t8_25)
 
-mean(compare$korrekt)
+mod_multi <- multinom(Cover_Type ~ ., data = train, maxit = 1000)
+summary(mod_multi)
+multi_pred <- predict(mod_multi, test)
 
-# Creating train- and test data
 set.seed(1)
-training_numbers <- sample(seq(15120), 12000, replace=F)
-train_data <- data[training_numbers,]
-test_data <- data[-training_numbers,]
-length(rownames(data))
+rf_forest <- randomForest(Cover_Type ~ ., 
+                          data = train, 
+                          mtry = 3,
+                          importance = TRUE)
+
+random_pred <- predict(rf_forest, newdata = test)
+
+compare <- as.data.frame(cbind(multi_pred, random_pred, test$Cover_Type))
+compare <- compare %>%
+  mutate(multi_korrekt = ifelse(multi_pred == V3, TRUE, FALSE)) %>%
+  mutate(random_korrekt = ifelse(random_pred == V3, TRUE, FALSE))
+
+mean(compare$multi_korrekt)
+mean(compare$random_korrekt)
+
+nodes <- round(seq(2, 1000,length.out = 10))
+n <- length(nodes)
+rates <- numeric(n)
+
+for (i in 1:n){
+  mod <- randomForest(Cover_Type ~ ., data = train, 
+                      ntree = nodes[i])
+  elv <- test %>%
+    add_predictions(mod) %>%
+    mutate(hit = ifelse(Cover_Type == pred, TRUE, FALSE)) %>%
+    summarize(hit_rate = mean(hit)) %>%
+    pull(hit_rate)
+  rates[i] <- elv                        
+  print(i)
+  
+}
+
+
+plot(rates[2:10])
+
+
+# Creating plots
 
 test <- ggplot(data, aes(x = Elevation, fill = Cover_Type)) +
   geom_density(alpha = 0.8) +
@@ -51,10 +84,41 @@ test <- ggplot(data, aes(x = Elevation, fill = Cover_Type)) +
 ggplot(data, aes(x = Cover_Type)) +
   geom_bar()
 
+ggplot(data, aes(x = Hillshade_3pm, y = Elevation, color = Cover_Type, size = h_road)) +
+  geom_point() +
+  scale_color_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                     values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Hillshade and elevation",
+       color = "Cover type:",
+       size = "Horizontal distance to roads",
+       x = "Hillshade at 3 pm") +
+  theme_classic()
+
+ggplot(data) +
+  geom_bin2d(aes(x = Slope, y = h_fire))
+
+?geom_point
 data %>%
   pull(Cover_Type) %>%
   count()
-
+theme_forest <- theme_classic(base_family = "Optima") +       # Changes font
+  theme(panel.background = element_rect(fill = "gray96"),     # Panel colour
+        plot.background = element_rect(fill = "gray96"),      # Plot colour
+        plot.title = element_text(face = "bold",              
+                                  hjust = 0.5, size = 15),    # Centers title
+        plot.subtitle = element_text(colour = "gray35", 
+                                     hjust = 0.5, size = 10), # Centers subtitle
+        axis.text.x = element_text(face="bold"),              
+        axis.text.y = element_text(face="bold"),
+        panel.grid.minor = element_blank(),                   # Removes minor grid
+        panel.grid.major = element_line(colour = "gray87"),   # Major grid colour
+        axis.ticks.x = element_blank(),                       # Removes x ticks
+        axis.ticks.y = element_blank(),                       # Removes y ticks
+        axis.line.x.bottom = element_line(colour = "gray60"), # Colour of x axis
+        axis.line.y.left = element_line(colour = "gray60"),   # Colour of y axis
+        legend.background = element_rect(fill = "gray96",     # Background of legend
+                                         colour = NA)
+  )
 
 ggplot(data) +
   geom_bin3d(aes(x = Elevation, y = Slope, z = Aspect))
@@ -65,11 +129,19 @@ ggplot(data, aes(x = v_water, fill = Cover_Type)) +
                     values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
   labs(title = "Plot",
        fill = "Cover type:") +
-  theme_classic()
+  theme_forest
 
 
 
-
+ggplot(data, aes(y = Elevation, x = soil, color = Cover_Type)) +
+  geom_point() +
+  scale_color_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                     values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Soil type and elevation",
+       color = "Cover type:",
+       x = "Soil type",
+       y = "Elevation") +
+  theme_forest
 
 plot <- data %>%
   pull(soil) %>%
@@ -81,7 +153,7 @@ ggplot(plot, aes(x = x, y = freq)) +
   labs(title = "Bar chart of Soil types",
        y = "Frequency",
        x = " Soil type") +
-  theme_classic()
+  theme_forest
 
 ggplot(data, aes(x = Cover_Type, y = h_water)) +
   geom_boxplot() +
