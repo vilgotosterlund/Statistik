@@ -1,0 +1,105 @@
+library(tidyverse)
+library(dplyr)
+library(randomdata)
+library(plyr)
+library(nnet)
+
+#### Wrangling ####
+data <-  as.tibble(read.csv("data_factors.csv"))
+original <- as.tibble(read.csv("train.csv"))
+summary(original)
+
+data <- data %>%
+  select(-X) %>%
+  mutate(Cover_Type = factor(Cover_Type),
+         wild = factor(wild),
+         soil = factor(soil))                  # Conversion to factors
+
+set.seed(1)
+s <- sample(1:nrow(data), nrow(data)/2, replace = FALSE)  # Sampling test set
+
+test <- data[s, ]   # Test set
+test <- test %>%
+  select(-Id)
+train <- data[-s, ] # Training set
+train <- train %>%
+  select(-Id)
+?multinom
+mod_multi <- multinom(Cover_Type ~ ., data = train, maxit = 7500)
+prediktioner <- predict(mod_multi, test)
+compare <- as.data.frame(cbind(prediktioner, test$Cover_Type))
+compare <- compare %>%
+  mutate(korrekt = ifelse(prediktioner == V2, TRUE, FALSE))
+
+mean(compare$korrekt)
+
+# Creating train- and test data
+set.seed(1)
+training_numbers <- sample(seq(15120), 12000, replace=F)
+train_data <- data[training_numbers,]
+test_data <- data[-training_numbers,]
+length(rownames(data))
+
+test <- ggplot(data, aes(x = Elevation, fill = Cover_Type)) +
+  geom_density(alpha = 0.8) +
+  scale_fill_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                    values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Plot",
+       fill = "Cover type:") +
+  theme_classic()
+
+ggplot(data, aes(x = Cover_Type)) +
+  geom_bar()
+
+data %>%
+  pull(Cover_Type) %>%
+  count()
+
+
+ggplot(data) +
+  geom_bin3d(aes(x = Elevation, y = Slope, z = Aspect))
+
+ggplot(data, aes(x = v_water, fill = Cover_Type)) +
+  geom_density(alpha = 0.8) +
+  scale_fill_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                    values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Plot",
+       fill = "Cover type:") +
+  theme_classic()
+
+
+
+
+
+plot <- data %>%
+  pull(soil) %>%
+  count()
+
+ggplot(plot, aes(x = x, y = freq)) +
+  geom_bar(stat="identity", fill = "green") +
+  geom_text(aes(label = freq), vjust = -0.3, size = 3.5) +
+  labs(title = "Bar chart of Soil types",
+       y = "Frequency",
+       x = " Soil type") +
+  theme_classic()
+
+ggplot(data, aes(x = Cover_Type, y = h_water)) +
+  geom_boxplot() +
+  scale_fill_manual(labels = c("Spruce/Fir", "Lodgepole Pine", "Ponderosa Pine", "Cottonwood/Willow", "Aspen", "Douglas-fir", "Krummholz"),
+                    values = c("green", "red", "black", "blue", "purple", "yellow", "pink")) +
+  labs(title = "Plot",
+       fill = "Cover type:",
+       x = "Cover type") +
+  theme_classic()
+
+
+require(gridExtra)
+grid.arrange(plot1, plot2, ncol=2)
+
+plot1 <- data %>%
+  ggplot(mapping = aes(x = Elevation, fill = Cover_Type, alpha = 0.5)) +
+  geom_density()
+
+plot2 <- data %>%
+  ggplot(mapping = aes(x = h_fire, fill = Cover_Type, alpha = 0.5)) +
+  geom_density()
