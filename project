@@ -134,4 +134,10 @@ ggplot(data, aes(y = Elevation, x = soil, color = Cover_Type)) +
   theme_classic()
 @
 
+\section{Simulatipn study}
+The simulation study can be described in two parts, the first  part is about generating new data and the second part is about the simulation. The idea is to use the new data to examine how different settings in the random forest model affect the performance of the model.
+
+\subsection{Generating data}
+Our first plan to generate a new data set was to use leave one out cross validation (LOOCV) together with linear- and generalized linear models. The idea was to start with the original data set and use a double for loop to predict new vales of the covariates and response variable. Excluding the $i$:th row, we wanted to estimate a model with the $j$:th column as the response variable. Depending on if the $j$:th column is a factor- or numerical variable, the model would either be a multinomial logit- or a linear model. After estimating the model, we use this and the vales of the covariates on the i:th row to predict a new value. Moving on to the next value of j, and later on to the next value of i, this will give us a new data set with the same size as the original set. This new data set should resemble the original data.
+
 \end{document}
