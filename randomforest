@@ -6,15 +6,14 @@ library(nnet)
 library(modelr)
 #### Wrangling ####
 data <-  as.tibble(read.csv("data_factors.csv"))
-original <- as.tibble(read.csv("train.csv"))
-summary(original)
-
 data <- data %>%
   select(-X) %>%
   mutate(Cover_Type = factor(Cover_Type),
          wild = factor(wild),
          soil = factor(soil))                  # Conversion to factors
 
+data <- data %>%
+  select(-Id)
 set.seed(1)
 s <- sample(1:nrow(data), nrow(data)/2, replace = FALSE)  # Sampling test set
 
@@ -175,3 +174,47 @@ plot1 <- data %>%
 plot2 <- data %>%
   ggplot(mapping = aes(x = h_fire, fill = Cover_Type, alpha = 0.5)) +
   geom_density()
+
+
+
+#  Nytt data
+new_data <- data
+for (i in 1:ncol(data)){
+  dep <- data %>%
+    pull(i)
+  indep <- data %>%
+    select(-i)
+  d <- cbind(dep, indep)
+  if(is.factor(dep)){
+    model <- multinom(dep ~ ., data = d)
+  }else{
+    model <- lm(dep ~ ., data = d)
+  }
+  new_data[, i] <- predict(model, d)
+}
+
+set.seed(1)
+rf_forest_simulation <- randomForest(Cover_Type ~ ., 
+                          data = new_data, 
+                          mtry = 3,
+                          maxnodes = 2500,
+                          importance = TRUE)
+
+random_pred_simulation <- predict(rf_forest_simulation, new_data, type = "prob")
+R <- 100000
+simulering <- matrix(nrow = nrow(new_data), ncol = R)
+for (i in 1:nrow(new_data)) {
+    simulering[i,] <- sample(c(1, 2, 3, 4, 5, 6, 7), size = R, prob = random_pred_simulation[i,], replace = TRUE)
+}
+
+samplad_simulering <- as.data.frame(matrix(nrow = nrow(simulering), ncol = 7))
+colnames(samplad_simulering) <- c(1, 2, 3, 4, 5, 6, 7)
+for (i in 1:nrow(simulering)) {
+  for (j in 1:7) {
+    samplad_simulering[i, j] <- count(simulering[i, ] == j)$freq[2]/R
+  }
+  print(i)
+}
+compare <- cbind(samplad_simulering, random_pred_simulation)
+write.csv(compare, "compare.csv")
+
