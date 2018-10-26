@@ -5,6 +5,7 @@ library(plyr)
 library(nnet)
 library(modelr)
 #### Wrangling ####
+getwd()
 data <-  as.tibble(read.csv("data_factors.csv"))
 data <- data %>%
   select(-X) %>%
@@ -195,26 +196,65 @@ for (i in 1:ncol(data)){
 
 set.seed(1)
 rf_forest_simulation <- randomForest(Cover_Type ~ ., 
-                          data = new_data, 
-                          mtry = 3,
-                          maxnodes = 2500,
-                          importance = TRUE)
+                                     data = new_data, 
+                                     mtry = 3,
+                                     maxnodes = 2500,
+                                     importance = TRUE)
 
-random_pred_simulation <- predict(rf_forest_simulation, new_data, type = "prob")
-R <- 100000
+random_pred_simulation <- as.tibble(predict(rf_forest_simulation, new_data, type = "prob"))
+colnames(random_pred_simulation) <- c("class_1", "class_2", "class_3", "class_4", "class_5", "class_6", "class_7")
+
+
+R <- 10000
+
 simulering <- matrix(nrow = nrow(new_data), ncol = R)
+
 for (i in 1:nrow(new_data)) {
-    simulering[i,] <- sample(c(1, 2, 3, 4, 5, 6, 7), size = R, prob = random_pred_simulation[i,], replace = TRUE)
+  simulering[i,] <- sample(c(1, 2, 3, 4, 5, 6, 7), size = R, prob = random_pred_simulation[i,], replace = TRUE)
 }
 
 samplad_simulering <- as.data.frame(matrix(nrow = nrow(simulering), ncol = 7))
-colnames(samplad_simulering) <- c(1, 2, 3, 4, 5, 6, 7)
+colnames(samplad_simulering) <- c("1_sample", "2_sample", "3_sample", "4_sample", "5_sample", "6_sample", "7_sample")
 for (i in 1:nrow(simulering)) {
   for (j in 1:7) {
-    samplad_simulering[i, j] <- count(simulering[i, ] == j)$freq[2]/R
+    if(count(simulering[i, ] == j)$x[1] == TRUE){
+      samplad_simulering[i, j] <- count(simulering[i, ] == j)$freq[1]/R
+    }else{
+      samplad_simulering[i, j] <- count(simulering[i, ] == j)$freq[2]/R
+    }
   }
   print(i)
 }
-compare <- cbind(samplad_simulering, random_pred_simulation)
+
+compare <- cbind(samplad_simulering, r_pred)
 write.csv(compare, "compare.csv")
 
+compare <- read_csv("compare.csv")
+compare <- compare[, 2:15]
+compare[is.na(compare)] <- 0
+prop <- matrix(ncol = 1, nrow = 14)
+for(i in 1:14){
+  prop[i,] <-compare %>%
+    pull(i) %>%
+    mean()
+}
+jamforelse <- cbind(prop[1:7,], prop[8:14,])
+jamforelse
+obs <- as.data.frame(matrix(ncol = 1, nrow = 6))
+colnames(obs) <- "Obs"
+obs[,1] <- c(1:6)
+obs[6,1] <- "Mean"
+
+sample_matrix <- rbind(compare[1:5, 1:7], jamforelse[,1])
+sample_matrix <- cbind(obs, sample_matrix)
+colnames(sample_matrix) <- c("Obs", "Type 1", "Type 2", "Type 3", "Type 4", "Type 5", "Type 6", "Type 7")
+prob_matrix <- rbind(compare[1:5, 8:14], jamforelse[,2])
+prob_matrix <- cbind(obs, prob_matrix)
+colnames(prob_matrix) <- c("Obs", "Type 1", "Type 2", "Type 3", "Type 4", "Type 5", "Type 6", "Type 7")
+
+sample_matrix <- format(sample_matrix, digits = 4, scientific = F)
+prob_matrix <- format(prob_matrix, digits = 4, scientific = F)
+prob_matrix
+sample_matrix
+write.csv(sample_matrix, "sample_matrix.csv")
+write.csv(prob_matrix, "prob_matrix.csv")
