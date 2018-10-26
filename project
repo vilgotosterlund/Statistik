@@ -16,7 +16,7 @@
 \maketitle
 
 \section{Introduction}
-In this project, we attemt to solve one of the competition problems published on Kaggle. The purpose of the competition is to use machine learning methods -- random forests -- in order to classify the forest cover type of a given 30 x 30 meter cell. In other words, we want to use the data supplied by Kaggle to determine which type of tree is most common on a specific plot of land. It is an important subject because it would save a lot of time and money if you could classify the tree type based on geographical data. If so, you would not have to fly over the specific area but instead classify the tree type from other -- already collected -- data. We will mainly focus on the random forest classification method, but we will compare it with the performance of a classification tree and a multinomial logit regression model. Not only will we compare the random forest model, but we will also do a small simulation study where we check that the models works the way it should. 
+Not only will we compare the random forest model, but we will also do a small simulation study where we check that the sample function in R gives reasonable results. 
 
 
 \section{Data}
@@ -24,6 +24,7 @@ In this project, we attemt to solve one of the competition problems published on
 library(tidyverse)
 library(dplyr)
 library(plyr)
+library(xtable)
 data <-  as.tibble(read.csv("data_factors.csv"))
 data <- data %>%
   select(-X) %>%
@@ -141,6 +142,24 @@ The simulation study can be described in two parts, the first  part is about gen
 Our first plan to generate a new data set was to use leave one out cross validation (LOOCV) together with linear- and multinomial logit models. The idea was to start with the original data set and use a double for loop to predict new vales of the covariates and response variable. Excluding the $i$:th row, we wanted to estimate a model with the $j$:th column as the response variable. Depending on if the $j$:th column is a factor or numerical variable, the model would either be a multinomial logit model or a linear model. After estimating the model, we use the model and the values of the covariates on the i:th row to predict a new value. Moving on to the next value of j, and later on to the next value of i, this would give us a new data set with the same size as the original set. However, when starting the for loop we quickly realised that it would take about two weeks for the loop to go trough all of the rows of the original data. It was mainly the creation of the multinomial models that where too time consuming. Therefore we abandoned the LOOCV idea and for some extent changed the generating plan. Instead of creating new models for each row, we created just one model for each variabel with all of the observations included. This means that in the first model the first column is the response variable and all other columns are the regressors. In the second model the second column is the response variable and the rest of the columns are the regressors, and so on. Using theese 13 models, we predicted new values based on the original data. This new data set should resemble the original data and it is on this data we will perform our simulation study.
 
 \subsection{Simulation}
-The simulation study will examine whether the sample function in R yields reasonable results when repeated many times. To start off, we use the data generated in the previous section and estimate a random forest model. We set the number of trees to 500 (default) and the maximum number of nodes to 2500 (achieved earlier). Thereafter, we use the model to predict the same data and save the probabilites for each observation to be of Cover type 1, 2, 3, 4, 5, 6 and 7. This gives us a data frame with 15 120 observations of seven variables. Moving on, we want to use the probabilities on each row to sample the cover type. For every row, we draw a sample of size 100 000 based on the probabilities for each cover type. If the sample function works the way it should, we can expect the proportion of each cover type to be the same as the predicted probabilities. 
+The simulation study will examine whether the sample function in R yields reasonable results when repeated many times. To start off, we use the data generated in the previous section and estimate a random forest model. We set the number of trees to 500 (default) and the maximum number of nodes to 2500 (achieved earlier). Thereafter, we use the model to predict the same data and save the probabilites for each observation to be of Cover type 1, 2, 3, 4, 5, 6 and 7. This gives us a data frame with 15 120 observations of seven variables. Moving on, we want to use the probabilities on each row to sample the cover type. For every row, we draw a sample of size 10 000 based on the probabilities for each cover type. If the sample function works the way it should, we can expect the proportion of each cover type to be the same as the predicted probabilities. To begin with, it actually looked like the sample function did not work the way it should and yield weird results. Of course, the function it self was not working wrong, but our code did. When the error was located and fixed, we yield reasonable results. In table \ref{tab:sample_matrix} we can see the first five observations of the sample proportions and the mean probabilities of each type for all observations. In table \ref{tab:prob_matrix} we have a corresponding table for the predicted probabilities, which we based the samples on. The numbers have been rounded to a maximum of four decimals, but we can see that there are only small differences between the two tables. Looking at the overall mean of each class, we notice that the sample proportions and the predicted probabilites are the same. However, these numbers have also been rounded and they are not exactly the same. From this, we can say that sample function works and that it yields reasonable results.
+
+<<include=FALSE>>=
+prob_matrix <- read.csv("prob_matrix.csv")
+sample_matrix <- read.csv("sample_matrix.csv")
+prob_matrix <- prob_matrix[,2:9]
+sample_matrix <- sample_matrix[,2:9]
+@
+
+<<sample_matrix>>=
+xtable(sample_matrix, caption = "Table with the propportions of the sample from the five first observations and the mean of all 15 120 observations.", 
+         label = "tab:sample_matrix")
+@
+
+<<>>=
+xtable(prob_matrix, caption = "Table with the predicted probabilities of the five first observations and the mean of all 15 120 observations.", 
+         label = "tab:prob_matrix")
+@
+
 
 \end{document}
