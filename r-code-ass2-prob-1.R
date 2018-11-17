@@ -230,3 +230,122 @@ stack <- stack %>%
   summarize(RMSE = sqrt(mean(dev_square)))
 stack
 models_rmse[1, 7] <- stack
+
+
+
+
+\documentclass{article}
+
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage[a4paper, total={6.1in, 8.1in}]{geometry}
+
+\author{Vilgot \"{O}sterlund}
+\title{Solutions to HWA 1}
+\date{November 19, 2018}
+
+\begin{document}
+
+\maketitle
+
+\section{}
+\textit{Y} belongs to the exponential dispersion family if the probability density or mass function of \textit{Y} is of the form:
+
+
+\begin{align*}
+f(y_i; \theta_i) = exp \left\{\frac{y_i \theta_i - b(\theta_i)}{a(\phi)} + c(y_i, \phi) \right\}, 
+\end{align*}
+
+\noindent Where $\theta_i$ is the natural parameter and $\phi$ is the dispersion parameter, $\phi > 0$.
+
+\noindent We have:
+
+\begin{align*}
+f(y_i; \theta_i) =\sqrt{\frac{1}{2 \pi y^{3}_{i}}}exp\left\{\frac{\theta_i\left(y_i - \sqrt{\frac{1}{2 \theta_i}} \right)^2}{y_i} \right\}.
+\end{align*}
+
+
+\begin{align*}
+f(y_i; \theta_i) &=\sqrt{\frac{1}{2 \pi y^{3}_{i}}}exp\left\{\frac{\theta_i\left(y_i - \sqrt{\frac{1}{2 \theta_i}} \right)^2}{y_i} \right\} \\ 
+&=exp\left\{log(2 \pi y^{3}_{i})^\frac{-1}{2} \right\} exp\left\{\frac{\theta_i\left(y_i - \sqrt{\frac{1}{2 \theta_i}} \right)^2}{y_i} \right\} \\
+&=exp\left\{\frac{\theta_i\left(y^{2}_{i} - 2y_i\sqrt{\frac{-1}{2\theta_i}} + \sqrt{\frac{-1}{2\theta_i}}^2 \right)}{y_i} -\frac{log(2 \pi y^{3}_{i})}{2} \right\} \\
+&=exp\left\{\theta_i y_i - 2 \theta_i \sqrt{\frac{-1}{2\theta_i}} + \frac{\frac{\theta_i}{2\theta_i}}{y_i} - \frac{log(2 \pi y^{3}_{i})}{2} \right\} \\
+&=exp\left\{\theta_i y_i - 2 \theta_i \sqrt{\frac{-1}{2\theta_i}} + \frac{\frac{1}{2}}{y_i} - \frac{log(2 \pi y^{3}_{i})}{2} \right\} \\
+&=exp\left\{\underbrace{y_i \theta_i - 2 \theta_i \sqrt{\frac{-1}{2\theta_i}}}_\frac{y_i \theta_i - b(\theta_i)}{a(\phi)} + \underbrace{\left[ \frac{1}{2 y_i} - \frac{log(2 \pi y^{3}_{i})}{2} \right] }_{c(y_i)} \right\}
+\end{align*}
+
+\noindent Hence, $\theta_i$ is the natural parameter and $a(\phi) = 1$.
+
+\section{}
+
+Since $Y_i$ belongs to the exponential family and is a continous random variable, we have differentiation that can pass trough integration. This gives that $E(Y_i) = b'(\theta_i)$. We can rewrite our $b(\theta_i)$ to: 
+
+\begin{align*}
+2 \theta_i \sqrt{\frac{-1}{2\theta_i}} &= - 2 \theta_i \sqrt{- 2 \theta^{-1}} \\
+&= - 2 \theta_i (- 2 \theta^{-1})^{\frac{1}{2}} \\
+&= - 2 \theta_i^{\frac{1}{2}} \\
+&= \sqrt{- 2\theta_i}
+\end{align*}
+
+\noindent With the help of the chain rule, $y' = f'(g(x))g'(x)$, letting $f(g(x)) = \sqrt{- 2\theta_i}$ and $g(x) = - 2 \theta_i$, we have that:
+
+\begin{align*}
+b`(\theta_i) &= \frac{1}{2}\theta_i^{-\frac{1}{2}}(- 2) \\
+&= \frac{1}{\sqrt{-2\theta_i}}
+\end{align*}
+
+\noindent Hence, the mean of $Y_i$ is $\frac{1}{\sqrt{-2\theta_i}}$. The variance of $Y_i$ is given by the second order derivative of $b(\theta_i)$, which is the first order derivative of $\frac{1}{\sqrt{-2\theta_i}}$. Again, using the chain rule:
+
+\begin{align*}
+b``(\theta_i) &= \frac{1}{(-2\theta_i)^{\frac{3}{2}}}
+\end{align*}
+
+Hence, the variation of $Y_i$ is $\frac{1}{(-2\theta_i)^{\frac{3}{2}}}$.
+
+\section{}
+
+The canonial link function is:
+
+\begin{align*}
+\mu &= \frac{1}{\sqrt{-2\theta_i}} \\
+\sqrt{-2\theta_i} &= \frac{1}{\mu} \\
+2\theta_i &= \frac{1}{\mu^2} \\
+\theta_i &= \frac{1}{2\mu^2}
+\end{align*}
+
+\section{}
+
+We have that $log(\mu_i) = \eta_i = \beta_1 + \beta_2X_{i1} + \cdots + \beta_p X_i$. The expression for the IRLS is $\beta^{(t+1)} = (X^T W^{(t)} X)^{-1} X^T W^{(t)} Z^{(t)}$, where $W^{(t)} = D^{(t)}(V^{(t)})^{-1}D^{(t)}$ and $Z^{(t)} = X\beta^t + (D^{(t)})^{-1} (y - \mu^t)$. 
+
+\[ X = \left( \begin{array}{ccc}
+x_{11} &\cdots & x_{1p} \\
+\vdots & \ddots & \vdots \\
+x_{n1} & \cdots & x_{np} \end{array} \right),\] 
+
+\[ D = \left( \begin{array}{ccc}
+exp(\beta_1 + \beta_2X_{i1} + \cdots + \beta_p X_i) &\cdots & x_{1n} \\
+\vdots & \ddots & \vdots \\
+0 & \cdots & exp(\beta_1 +\beta_2X_{i1} + \cdots + \beta_p X_i) \end{array} \right),\] 
+
+\[ V = \left( \begin{array}{ccc}
+exp(\beta_1 + \beta_2X_{i1} + \cdots + \beta_p X_i) &\cdots & 0 \\
+\vdots & \ddots & \vdots \\
+0 & \cdots & exp(\beta_1 +\beta_2X_{i1} + \cdots + \beta_p X_i) \end{array} \right),\] 
+
+
+\[ Y - \mu^{(t)} = \left( \begin{array}{ccc}
+y_i -  exp(\beta_1 + \beta_2X_{i1} + \cdots + \beta_p X_i)\\
+\vdots\\
+y_i -  exp(\beta_1 + \beta_2X_{i1} + \cdots + \beta_p X_i) \end{array} \right),\]
+
+\section{}
+For the saturated model, we have that every $Y_i$ has it own $\mu_i$. The maximum likelihood estimate (MLE) of $\mu_i$ is $\tilde{\mu}_i$ and the MLE of $\theta_i$ is $\tilde{\theta}_i = \frac{1}{2\mu^2}$.
+\section{}
+
+\section{}
+\section{}
+\section{}
+\section{}
+\end{document}
